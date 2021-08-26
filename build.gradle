@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+group 'pl.pabilo8'
+version '0.1.0'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io/' } //Querz NBT Lib
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
+
+    implementation 'com.github.weisj:darklaf-core:2.7.2' //Fancy IntelliJ-Like Theme
+    implementation 'org.jogamp.jogl:jogl-all-main:2.3.2' //Swing OpenGL
+    implementation 'org.jogamp.gluegen:gluegen-rt-main:2.3.2' //Swing OpenGL
+    implementation 'com.google.code.findbugs:jsr305:3.0.2' //Javax Annotations (NonNull, Nullable, etc.)
+    implementation 'com.miglayout:miglayout-swing:5.3' //A great, flexible layout (do not update!
+    implementation 'com.miglayout:miglayout-core:5.3' //Required by the above
+
+    implementation 'com.google.code.gson:gson:2.8.7' //JSON library
+    implementation 'com.github.Querz:NBT:6.1' //NBT
+
+}
+
+test {
+    useJUnitPlatform()
+}
