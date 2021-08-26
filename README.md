@@ -1,4 +1,4 @@
-![Kraftwerk Logo](src\main\resources\pl\pabilo8\kraftwerk\textures\kraftwerk_logo.svg)
+![Kraftwerk Logo](/src/main/resources/pl/pabilo8/kraftwerk/textures/kraftwerk_logo.svg)
 # Kraftwerk
 ### A modelling and animation toolkit for Minecraft Modders.
 Kraftwerk is a 3D modelling tool created with intention to be a tool primarily for Minecraft Modders.  
