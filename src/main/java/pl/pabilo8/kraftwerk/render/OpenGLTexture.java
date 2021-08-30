@@ -3,6 +3,7 @@ package pl.pabilo8.kraftwerk.render;
 import com.jogamp.opengl.GL4bc;
 import pl.pabilo8.kraftwerk.utils.ResourceUtils;
 
+import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
@@ -101,7 +102,7 @@ public class OpenGLTexture
 		this(img, false);
 	}
 
-	public OpenGLTexture(BufferedImage img, boolean alpha)
+	public OpenGLTexture(BufferedImage img, boolean alpha, @Nullable ITextureRefreshListener listener)
 	{
 		this.texture_id = -1;
 		this.alpha = false;
@@ -116,7 +117,12 @@ public class OpenGLTexture
 		this.error = false;
 		this.glLoaded = false;
 		this.alpha = alpha;
-		this.updateTexture(img);
+		this.updateTexture(img, listener);
+	}
+
+	public OpenGLTexture(BufferedImage img, boolean alpha)
+	{
+		this(img, alpha, null);
 	}
 
 	public void startDownloadingNow(GL4bc gl)
@@ -168,9 +174,9 @@ public class OpenGLTexture
 		}
 	}
 
-	public void updateTexture(BufferedImage img)
+	public void updateTexture(BufferedImage img, @Nullable ITextureRefreshListener listener)
 	{
-		this.downloader = new OpenGLTexture.ImageDownloader(img);
+		this.downloader = new OpenGLTexture.ImageDownloader(img, listener);
 		this.glLoaded = false;
 	}
 
@@ -415,11 +421,19 @@ public class OpenGLTexture
 		private boolean image_downloaded = false;
 		private String filename = null;
 		private String path = null;
+		private ITextureRefreshListener listener = null;
 
 		public ImageDownloader(BufferedImage img)
 		{
 			this.img = img;
 			this.image_downloaded = true;
+		}
+
+		public ImageDownloader(BufferedImage img, ITextureRefreshListener listener)
+		{
+			this.img = img;
+			this.image_downloaded = true;
+			this.listener = listener;
 		}
 
 		public ImageDownloader(InputStream imagefile)
@@ -465,6 +479,10 @@ public class OpenGLTexture
 					this.img = ImageIO.read(this.imagefile);
 					this.imagefile.close();
 					this.image_downloaded = true;
+					if(listener!=null)
+					{
+						listener.onReload();
+					}
 				}
 			}
 			catch(IOException var2)
@@ -495,5 +513,10 @@ public class OpenGLTexture
 		{
 			return this.image_downloaded;
 		}
+	}
+
+	public interface ITextureRefreshListener
+	{
+		void onReload();
 	}
 }

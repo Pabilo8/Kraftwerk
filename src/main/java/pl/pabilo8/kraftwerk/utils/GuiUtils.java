@@ -3,19 +3,17 @@ package pl.pabilo8.kraftwerk.utils;
 import com.github.weisj.darklaf.components.tabframe.PanelPopup;
 import com.github.weisj.darklaf.components.tabframe.TabFramePopup;
 import com.github.weisj.darklaf.util.Alignment;
-import com.github.weisj.darklaf.util.DarkUIUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.miginfocom.swing.MigLayout;
+import jnafilechooser.api.JnaFileChooser;
 import pl.pabilo8.kraftwerk.Kraftwerk;
 import pl.pabilo8.kraftwerk.editor.EditorProject;
 import pl.pabilo8.kraftwerk.gui.action.ActionCommand;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.File;
@@ -108,34 +106,15 @@ public class GuiUtils
 		return jMenu;
 	}
 
-	public static JPanel createTabPanel(String name, @Nullable Icon icon, Dimension preferred, Alignment alignment, boolean open, boolean debug)
-	{
-		StringBuilder layout = new StringBuilder();
-		if(debug)
-			layout.append("debug, ");
-		layout.append("fillx, aligny top, toptobottom");
-		JPanel panel = new JPanel(new MigLayout(layout.toString()));
-		panel.setOpaque(true);
-		panel.setPreferredSize(preferred);
-		panel.setSize(preferred);
-		PanelPopup popup = addSideTab(name, icon, panel, alignment);
-		Kraftwerk.INSTANCE.tabFrame.validate();
-		if(open)
-			Kraftwerk.INSTANCE.tabFrame.openTab((TabFramePopup)popup);
-		return panel;
-	}
-
 	public static void saveToFile(boolean forceNewFile)
 	{
 		File file = null;
 
 		if(forceNewFile||Kraftwerk.INSTANCE.currentProject==null||Kraftwerk.INSTANCE.currentProject.filePath==null)
 		{
-			JFileChooser chooser = new JFileChooser((String)null);
-			chooser.addChoosableFileFilter(new FileNameExtensionFilter(ResourceUtils.translateString(Kraftwerk.res, "project_file")+" (.kftw)", "kftw"));
-			chooser.setAcceptAllFileFilterUsed(false);
-			SwingUtilities.invokeLater(() -> DarkUIUtil.getWindow(chooser).toFront());
-			if(chooser.showSaveDialog(Kraftwerk.INSTANCE)==JFileChooser.APPROVE_OPTION)
+			JnaFileChooser chooser = new JnaFileChooser();
+			chooser.addFilter(ResourceUtils.translateString(Kraftwerk.res, "project_file")+" (.kftw)", "kftw");
+			if(chooser.showSaveDialog(Kraftwerk.INSTANCE))
 				file = chooser.getSelectedFile();
 		}
 		else
@@ -191,5 +170,19 @@ public class GuiUtils
 		{
 			Kraftwerk.logger.warning("Couldn't read project file. "+e.getMessage());
 		}
+	}
+
+
+	public static void openTexture()
+	{
+		JnaFileChooser chooser = new JnaFileChooser();
+		//chooser.setMultiSelectionEnabled(true);
+		chooser.addFilter(ResourceUtils.translateString(Kraftwerk.res, "png_file")+" (.png)", "png");
+		if(chooser.showOpenDialog(Kraftwerk.INSTANCE))
+		{
+			for(File file : chooser.getSelectedFiles())
+				Kraftwerk.INSTANCE.currentProject.addTexture(file);
+		}
+
 	}
 }

@@ -1,23 +1,16 @@
 package pl.pabilo8.kraftwerk;
 
 import com.github.weisj.darklaf.LafManager;
-import com.github.weisj.darklaf.components.OverlayScrollPane;
 import com.github.weisj.darklaf.components.tabframe.JTabFrame;
 import com.github.weisj.darklaf.components.tabframe.TabFramePopup;
 import com.github.weisj.darklaf.components.tabframe.TabFrameTab;
 import com.github.weisj.darklaf.components.tabframe.TabFrameTabLabel;
-import com.github.weisj.darklaf.components.text.SearchTextField;
 import com.github.weisj.darklaf.theme.DarculaTheme;
-import com.github.weisj.darklaf.ui.list.DarkListUI;
-import com.github.weisj.darklaf.util.Alignment;
 import com.github.weisj.darklaf.util.DarkUIUtil;
 import com.jogamp.opengl.GL4bc;
+import jnafilechooser.api.JnaFileChooser;
 import pl.pabilo8.kraftwerk.editor.EditorProject;
 import pl.pabilo8.kraftwerk.editor.EditorProject.ModelRestrictionTemplate;
-import pl.pabilo8.kraftwerk.editor.elements.ModelElement;
-import pl.pabilo8.kraftwerk.editor.elements.ModelElementShapebox;
-import pl.pabilo8.kraftwerk.editor.elements.ModelTexture;
-import pl.pabilo8.kraftwerk.editor.elements.ModelTexture.TextureListCellRenderer;
 import pl.pabilo8.kraftwerk.editor.modelworkers.DefaultModelExporters;
 import pl.pabilo8.kraftwerk.editor.modelworkers.DefaultModelImporters;
 import pl.pabilo8.kraftwerk.editor.modelworkers.ModelExporter;
@@ -25,7 +18,7 @@ import pl.pabilo8.kraftwerk.editor.modelworkers.ModelImporter;
 import pl.pabilo8.kraftwerk.gui.*;
 import pl.pabilo8.kraftwerk.gui.action.ActionCommand;
 import pl.pabilo8.kraftwerk.gui.action.ActionNewProjectFromTemplate;
-import pl.pabilo8.kraftwerk.gui.panel.PanelModelEditor;
+import pl.pabilo8.kraftwerk.gui.panel.*;
 import pl.pabilo8.kraftwerk.utils.GuiUtils;
 import pl.pabilo8.kraftwerk.utils.ResourceUtils;
 
@@ -34,8 +27,6 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -53,7 +44,7 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 	public ArrayList<JComponent> localizeList = new ArrayList<>();
 
 	public static Kraftwerk INSTANCE;
-	private static HashMap<KeyStroke, Action> keyBinds = new HashMap<>();
+	private static final HashMap<KeyStroke, Action> keyBinds = new HashMap<>();
 
 	JMenuBar menuBarTop;
 	private JMenu menuFile, menuEdit, menuView, menuModel, menuRendering, menuHelp;
@@ -70,7 +61,10 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 	public PanelModelEditor panelModelEditor;
 	public EditorProject currentProject;
 	public JTabFrame tabFrame;
-	public JPanel panelPartProperties, panelPartPreview, panelModelElements, panelModelProps, panelUV, panelTextures;
+
+	private ArrayList<PanelTab> registeredTabs = new ArrayList<>();
+	public PanelTab panelPartProperties, panelPartPreview, panelModelElements, panelModelProps, panelUV;
+	public PanelTabTextures panelTextures;
 
 	public ArrayList<ModelImporter> modelImporters = new ArrayList<>();
 	public ArrayList<ModelExporter> modelExporters = new ArrayList<>();
@@ -107,7 +101,7 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		Icons.loadIcons();
 
 		INSTANCE.panelMain = new JPanel();
-		INSTANCE.panelMain.setLayout(new GridLayout(1, 1));
+		INSTANCE.panelMain.setLayout(new BorderLayout());
 		INSTANCE.setLocationRelativeTo(null);
 		INSTANCE.setContentPane(INSTANCE.panelMain);
 		INSTANCE.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -157,8 +151,8 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		registerModelExporters();
 
 		initCenter();
-		initRightPanel();
-		initLeftPanel();
+		preInitTabs();
+		initTabs();
 		initKeyBinds();
 
 		if(Kraftwerk.INSTANCE.currentProject==null)
@@ -228,10 +222,16 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		initMenuBar();
 		INSTANCE.setIconImage(programIcon);
 		INSTANCE.validate();
+		INSTANCE.registeredTabs.forEach(PanelTab::refresh);
 
 		//setLookAndFeel();
 		updateLanguage();
 		onProjectLoad(Kraftwerk.INSTANCE.currentProject);
+	}
+
+	public static void registerTab(PanelTab panelTab)
+	{
+		Kraftwerk.INSTANCE.registeredTabs.add(panelTab);
 	}
 
 	private int getDefaultFPS()
@@ -360,66 +360,22 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 
 		INSTANCE.panelMain.add(INSTANCE.tabFrame, BorderLayout.CENTER);
 		INSTANCE.tabFrame.setContent(INSTANCE.panelModelEditor);
-
-		INSTANCE.panelModelElements = GuiUtils.createTabPanel("tabs.elements", null,
-				new Dimension(256, INSTANCE.panelMain.getHeight()), Alignment.WEST, true, false);
-		INSTANCE.panelModelProps = GuiUtils.createTabPanel("tabs.props", null,
-				new Dimension(256, INSTANCE.panelMain.getHeight()), Alignment.WEST, false, false);
-
-		INSTANCE.panelPartProperties = GuiUtils.createTabPanel("tabs.properties", null,
-				new Dimension(256, INSTANCE.panelMain.getHeight()), Alignment.NORTH_WEST, true, false);
-		INSTANCE.panelPartPreview = GuiUtils.createTabPanel("tabs.preview", null,
-				new Dimension(256, INSTANCE.panelMain.getHeight()), Alignment.NORTH_WEST, false, false);
-
-		INSTANCE.panelTextures = GuiUtils.createTabPanel("tabs.textures", null,
-				new Dimension(312, INSTANCE.panelMain.getHeight()), Alignment.SOUTH_EAST, true, false);
-
-		INSTANCE.panelUV = GuiUtils.createTabPanel("tabs.uv", null,
-				new Dimension(312, INSTANCE.panelMain.getHeight()), Alignment.EAST, true, false);
 	}
 
-	private static void initLeftPanel()
+	private static void preInitTabs()
 	{
-		SearchTextField search = new SearchTextField();
-		INSTANCE.panelModelElements.add(search, "growx, wrap");
-
-		JMenuBar shapeToolBar = new JMenuBar();
-		shapeToolBar.setLayout(new WrapLayout(FlowLayout.LEFT, 0, 0));
-		shapeToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.directoryIcon"), 32));
-		shapeToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		shapeToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		shapeToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		shapeToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		INSTANCE.panelModelElements.add(shapeToolBar, "grow, wrap");
-
-		DefaultMutableTreeNode root = new DefaultMutableTreeNode("Root");
-		for(int i = 0; i < 40; i++)
-			root.add(new ModelElementShapebox(String.format("Shapebox #%d", i),0,i,0));
-		JTreeDragAndDrop modelTree = new JTreeDragAndDrop(root);
-		modelTree.setRootVisible(false);
-		modelTree.setShowsRootHandles(true);
-		modelTree.setCellRenderer(new DefaultTreeCellRenderer());
-		search.addSearchListener(modelTree);
-		INSTANCE.panelModelElements.add(new OverlayScrollPane(modelTree), "grow, push");
+		INSTANCE.panelModelElements = new PanelTabElements();
+		INSTANCE.panelModelProps = new PanelTabProps();
+		INSTANCE.panelPartProperties = new PanelTabProperties();
+		INSTANCE.panelPartPreview = new PanelTabPreview();
+		INSTANCE.panelTextures = new PanelTabTextures();
+		INSTANCE.panelUV = new PanelTabUV();
 	}
 
-	private static void initRightPanel()
+	private static void initTabs()
 	{
-		JMenuBar textureToolBar = new JMenuBar();
-		textureToolBar.setLayout(new WrapLayout(FlowLayout.LEFT, 0, 0));
-		textureToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.directoryIcon"), 32));
-		textureToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		textureToolBar.add(GuiUtils.getIconButton(UIManager.getIcon("FileView.fileIcon"), 32));
-		INSTANCE.panelTextures.add(textureToolBar, "grow, wrap");
-
-		DefaultListModel<ModelTexture> textureList = new DefaultListModel<>();
-
-		JList<ModelTexture> list = new JList<>(textureList);
-		list.setCellRenderer(new TextureListCellRenderer());
-		list.putClientProperty(DarkListUI.KEY_ALTERNATE_ROW_COLOR, true);
-		list.setLayoutOrientation(JList.VERTICAL);
-
-		INSTANCE.panelTextures.add(new JScrollPane(list, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), "grow, push");
+		for(PanelTab tab : INSTANCE.registeredTabs)
+			tab.init();
 	}
 
 	private static void initKeyBinds()
@@ -427,6 +383,12 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		addKeyBind("open", KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_MASK));
 		addKeyBind("save", KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_MASK));
 		addKeyBind("save_as", KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_MASK+KeyEvent.SHIFT_MASK));
+
+		addKeyBind("undo", KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_MASK));
+		addKeyBind("redo", KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_MASK));
+		addKeyBind("cut", KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_MASK));
+		addKeyBind("copy", KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_MASK));
+		addKeyBind("paste", KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_MASK));
 	}
 
 	public static void addKeyBind(String action, KeyStroke key)
@@ -488,12 +450,9 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 				break;
 			case "open":
 			{
-				JFileChooser chooser = new JFileChooser((String)null);
-				chooser.addChoosableFileFilter(new FileNameExtensionFilter(ResourceUtils.translateString(res, "project_file")+" (.kftw)", "kftw"));
-				chooser.setAcceptAllFileFilterUsed(false);
-				//chooser.setDragEnabled(true);
-				SwingUtilities.invokeLater(() -> DarkUIUtil.getWindow(chooser).toFront());
-				if(chooser.showOpenDialog(Kraftwerk.INSTANCE)==JFileChooser.APPROVE_OPTION)
+				JnaFileChooser chooser = new JnaFileChooser();
+				chooser.addFilter(ResourceUtils.translateString(res, "project_file")+" (.kftw)", "kftw");
+				if(chooser.showOpenDialog(Kraftwerk.INSTANCE))
 					GuiUtils.openProject(chooser.getSelectedFile());
 			}
 			break;
@@ -506,6 +465,21 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 			case "settings":
 				new SettingsDialog();
 				break;
+			case "open_texture":
+			{
+				GuiUtils.openTexture();
+			}
+			break;
+			case "edit_texture":
+			{
+
+			}
+			break;
+			case "remove_texture":
+			{
+				INSTANCE.panelTextures.removeSelectedTexture();
+			}
+			break;
 			case "toggle_camera":
 				panelModelEditor.toggleCamera();
 				break;

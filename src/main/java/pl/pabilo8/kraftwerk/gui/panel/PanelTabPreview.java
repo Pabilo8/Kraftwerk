@@ -6,11 +6,11 @@ import com.github.weisj.darklaf.util.Alignment;
  * @author Pabilo8
  * @since 26.08.2021
  */
-public class PanelTabProperties extends PanelTab
+public class PanelTabPreview extends PanelTab
 {
-	public PanelTabProperties()
+	public PanelTabPreview()
 	{
-		super("tabs.properties", null, 256, Alignment.NORTH_WEST, true, false);
+		super("tabs.preview", null, 256, Alignment.NORTH_WEST, false, false);
 	}
 
 	@Override

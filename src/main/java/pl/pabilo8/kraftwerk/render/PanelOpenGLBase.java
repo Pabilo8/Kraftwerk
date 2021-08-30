@@ -33,7 +33,7 @@ public abstract class PanelOpenGLBase extends JPanel implements GLEventListener,
 	public static Logger logger = Logger.getLogger("Kraftwerk.OPENGL");
 
 	private long time_previous = -1L;
-	private double _fps = 60.0D;
+	private double _fps;
 	private int fps_counter;
 	private boolean[] mouse_button_pressed = new boolean[3];
 	private boolean first_setup = true;
@@ -46,6 +46,7 @@ public abstract class PanelOpenGLBase extends JPanel implements GLEventListener,
 		this.add(this.glArea);
 		this.animator = new FPSAnimator(this.glArea, fps, false);
 		this.animator.start();
+		this._fps = fps;
 	}
 
 	public void startAnimation()

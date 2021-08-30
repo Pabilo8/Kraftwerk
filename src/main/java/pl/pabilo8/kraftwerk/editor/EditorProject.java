@@ -8,6 +8,8 @@ import pl.pabilo8.kraftwerk.editor.elements.ModelTexture;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
+import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -67,12 +69,12 @@ public class EditorProject
 	public static EditorProject fromJSON(JsonObject json)
 	{
 		EditorProject project = new EditorProject();
-		project.name=json.get("name").getAsString();
-		project.name=json.get("author").getAsString();
+		project.name = json.get("name").getAsString();
+		project.name = json.get("author").getAsString();
 		try
 		{
-			project.creationDate=SimpleDateFormat.getInstance().parse(json.get("creation_date").getAsString());
-			project.lastEditDate=SimpleDateFormat.getInstance().parse(json.get("creation_date").getAsString());
+			project.creationDate = SimpleDateFormat.getInstance().parse(json.get("creation_date").getAsString());
+			project.lastEditDate = SimpleDateFormat.getInstance().parse(json.get("creation_date").getAsString());
 		}
 		catch(ParseException exception)
 		{
@@ -80,7 +82,7 @@ public class EditorProject
 		}
 		try
 		{
-			project.template=ModelRestrictionTemplate.valueOf(json.get("restriction_template").getAsString().toUpperCase());
+			project.template = ModelRestrictionTemplate.valueOf(json.get("restriction_template").getAsString().toUpperCase());
 		}
 		catch(IllegalArgumentException exception)
 		{
@@ -89,34 +91,56 @@ public class EditorProject
 		return project;
 	}
 
+	public void addTexture(@Nullable File file)
+	{
+		if(file==null)
+			return;
+
+		if(template.onlyOneTexture&&textures.size() > 0)
+			return;
+
+		try
+		{
+			ModelTexture texture = new ModelTexture(file.toURI().toURL());
+			textures.add(texture);
+			Kraftwerk.INSTANCE.panelTextures.refresh();
+		}
+		catch(MalformedURLException e)
+		{
+			Kraftwerk.logger.warning("Couldn't load texture from file, "+e.getMessage());
+		}
+	}
+
 	/**
 	 * Restriction Templates defines what the model cannot contain
 	 * f.e. Vanilla models support 22.5 based rotation angles and doesn't allow elements other than cuboids
 	 */
 	public enum ModelRestrictionTemplate
 	{
-		FREE(false, false, false, true),
-		VANILLA_JSON(false, true, true, false),
-		FORGE_MULTIPART(false, true, true, true),
-		VANILLA_JAVA(true, false, true, false),
-		TMT(true, false, false, false);
+		FREE(false, false, false, false, true),
+		VANILLA_JSON(false, false, true, true, false),
+		FORGE_MULTIPART(false, false, true, true, true),
+		VANILLA_JAVA(true, true, false, true, false),
+		TMT(true, true, false, false, false);
 
 		@Nullable
 		final public Icon icon;
 
 		//The rules
+		final public boolean onlyOneTexture;
 		final public boolean onlyBoxUVs;
 		final public boolean onlyVanillaRotations;
 		final public boolean onlyCuboids;
 		final public boolean multipartMaterials;
 
-		ModelRestrictionTemplate(boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials)
+		ModelRestrictionTemplate(boolean onlyOneTexture, boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials)
 		{
-			this(onlyBoxUVs, onlyVanillaRotations, onlyCuboids, multipartMaterials, null);
+			this(onlyOneTexture, onlyBoxUVs, onlyVanillaRotations, onlyCuboids, multipartMaterials, null);
 		}
 
-		ModelRestrictionTemplate(boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials, @Nullable Icon icon)
+		ModelRestrictionTemplate(boolean onlyOneTexture, boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials, @Nullable Icon icon)
 		{
+			this.onlyOneTexture = onlyOneTexture;
 			this.onlyBoxUVs = onlyBoxUVs;
 			this.onlyVanillaRotations = onlyVanillaRotations;
 			this.onlyCuboids = onlyCuboids;

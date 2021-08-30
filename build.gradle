@@ -1,8 +1,13 @@
 plugins {
-    id 'java'
+    id "groovy"
+    id "java"
+    id "idea"
+    id 'java-library'
 }
 
-group 'pl.pabilo8'
+apply plugin: 'java-library'
+
+group 'pl.pabilo8.kraftwerk'
 version '0.1.0'
 
 repositories {
@@ -23,9 +28,32 @@ dependencies {
 
     implementation 'com.google.code.gson:gson:2.8.7' //JSON library
     implementation 'com.github.Querz:NBT:6.1' //NBT
+    implementation 'com.github.steos:jnafilechooser:1.0'
+    //Native Windows file chooser with fallback to Swing's JFileChooser
+
 
 }
 
 test {
     useJUnitPlatform()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+tasks.named('jar') {
+    doFirst {
+        manifest {
+            manifest {
+                attributes('Implementation-Title': project.name,
+                        'Implementation-Version': project.version,
+                        'Main-Class':(project.group+'.Kraftwerk'),
+                )
+            }
+        }
+    }
+
 }
