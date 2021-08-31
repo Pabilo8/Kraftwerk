@@ -2,17 +2,15 @@ plugins {
     id "groovy"
     id "java"
     id "idea"
-    id 'java-library'
+    id 'application'
 }
 
-apply plugin: 'java-library'
-
 group 'pl.pabilo8.kraftwerk'
-version '0.1.0'
+project.version = version_major + '.' + version_minor + '.' + version_patch
 
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io/' } //Querz NBT Lib
+    maven { url 'https://jitpack.io/' } //DarkLaf, NBT, JNAFileChooser
 }
 
 dependencies {
@@ -26,11 +24,10 @@ dependencies {
     implementation 'com.miglayout:miglayout-swing:5.3' //A great, flexible layout (do not update!
     implementation 'com.miglayout:miglayout-core:5.3' //Required by the above
 
-    implementation 'com.google.code.gson:gson:2.8.7' //JSON library
+    implementation 'com.google.code.gson:gson:2.8.8' //JSON library
     implementation 'com.github.Querz:NBT:6.1' //NBT
     implementation 'com.github.steos:jnafilechooser:1.0'
     //Native Windows file chooser with fallback to Swing's JFileChooser
-
 
 }
 
@@ -40,20 +37,18 @@ test {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(8)
+        languageVersion = JavaLanguageVersion.of(version_java)
     }
 }
 
-tasks.named('jar') {
-    doFirst {
-        manifest {
-            manifest {
-                attributes('Implementation-Title': project.name,
-                        'Implementation-Version': project.version,
-                        'Main-Class':(project.group+'.Kraftwerk'),
-                )
-            }
-        }
-    }
+application {
+    setExecutableDir("")
+    mainClass = project.group + '.Kraftwerk'
+}
 
+applicationDistribution.from(projectDir) {
+    into ''
+    var split = included_files.split(",")
+    for (String val : split)
+        it.include val
 }

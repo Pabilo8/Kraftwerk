@@ -135,7 +135,7 @@ public class PanelModelEditor extends PanelOpenGLBase implements MouseWheelListe
 		if(scrollIn!=cameraZoom)
 		{
 			cameraZoom += Math.signum(scrollIn-cameraZoom)*0.0625f;
-			cameraZoom = MathUtils.clamp(cameraZoom, Math.max(0.025f,scrollIn), Math.min(5f,scrollIn));
+			cameraZoom = MathUtils.clamp(cameraZoom, Math.max(0.025f, scrollIn), Math.min(5f, scrollIn));
 		}
 
 		for(Integer i : keyPressed)
