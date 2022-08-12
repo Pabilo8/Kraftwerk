@@ -24,9 +24,9 @@ public class OpenGLTexture
 	private OpenGLTexture.ImageDownloader downloader;
 	private GL4bc gl;
 	private boolean glLoaded;
-	private String name;
-	private String filename;
-	private String path;
+	private final String name;
+	private final String filename;
+	private final String path;
 	public static BufferedImage default_texture;
 	private int rendering_quality;
 

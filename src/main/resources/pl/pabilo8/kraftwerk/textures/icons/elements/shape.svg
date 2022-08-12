@@ -1,0 +1,23 @@
+<!-- Copyright 2000-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. -->
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs id="colors">
+        <linearGradient id="menuIconEnabled" fallback="Label.foreground">
+            <stop offset="0" stop-color="#AFB1B3"/>
+            <stop offset="1" stop-color="#AFB1B3"/>
+        </linearGradient>
+    </defs>
+   <g fill="url(#menuIconEnabled)">
+       <path d="M 4,1 V 4 H 7 V 1 Z M 5,2 H 6 V 3 H 5 Z" />
+       <path d="m 9,1 v 3 h 3 V 1 Z m 1,1 h 1 v 1 h -1 z" />
+       <path d="m 12,6 v 3 h 3 V 6 Z m 1,1 h 1 v 1 h -1 z" />
+       <path d="M 1,6 V 9 H 4 V 6 Z M 2,7 H 3 V 8 H 2 Z" />
+       <rect width="2" height="1" x="7" y="2" />
+       <rect width="3.964102" height="1.1339742" x="8.5980759" y="-8.8923044" transform="rotate(60)" />
+       <rect width="3.964102" height="1.1339742" x="0.59807575" y="4.9641023" transform="matrix(-0.5,0.8660254,0.8660254,0.5,0,0)" />
+       <rect width="3.964102" height="1.1339742" x="-4.7762799" y="-16.593267" transform="matrix(0.5,-0.8660254,-0.8660254,-0.5,0,0)" />
+       <rect width="3.964102" height="1.1339742" x="-12.75833" y="-2.7679491" transform="rotate(-120)" />
+       <path d="m 3.9820505,11.433013 v 3 h 3 v -3 z m 1,1 h 1 v 1 h -1 z" />
+       <path d="m 8.9820505,11.433013 v 3 H 11.98205 v -3 z m 1,1 H 10.98205 v 1 H 9.9820505 Z" />
+       <rect width="2" height="1" x="6.9820504" y="12.433013" />
+   </g>
+</svg>

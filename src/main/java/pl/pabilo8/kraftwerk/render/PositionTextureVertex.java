@@ -4,35 +4,35 @@ import pl.pabilo8.kraftwerk.utils.vector.Vec3d;
 
 /**
  * Unrightfully stolen from Minecraft's source code (pls don't sue)
+ *
  * @since 13.08.2021
  */
 public class PositionTextureVertex
 {
-	public Vec3d vector3D;
-	public float texturePositionX;
-	public float texturePositionY;
+	public Vec3d pos;
+	public float u, v;
 
-	public PositionTextureVertex(float p_i1158_1_, float p_i1158_2_, float p_i1158_3_, float p_i1158_4_, float p_i1158_5_)
+	public PositionTextureVertex(float x, float y, float z, float u, float v)
 	{
-		this(new Vec3d(p_i1158_1_, p_i1158_2_, p_i1158_3_), p_i1158_4_, p_i1158_5_);
+		this(new Vec3d(x, y, z), u, v);
 	}
 
-	public PositionTextureVertex setTexturePosition(float p_78240_1_, float p_78240_2_)
+	public PositionTextureVertex setTexturePosition(float u, float v)
 	{
-		return new PositionTextureVertex(this, p_78240_1_, p_78240_2_);
+		return new PositionTextureVertex(this, u, v);
 	}
 
-	public PositionTextureVertex(PositionTextureVertex textureVertex, float texturePositionXIn, float texturePositionYIn)
+	public PositionTextureVertex(PositionTextureVertex vertex, float u, float v)
 	{
-		this.vector3D = textureVertex.vector3D;
-		this.texturePositionX = texturePositionXIn;
-		this.texturePositionY = texturePositionYIn;
+		this.pos = vertex.pos;
+		this.u = u;
+		this.v = v;
 	}
 
-	public PositionTextureVertex(Vec3d p_i47091_1_, float p_i47091_2_, float p_i47091_3_)
+	public PositionTextureVertex(Vec3d pos, float u, float v)
 	{
-		this.vector3D = p_i47091_1_;
-		this.texturePositionX = p_i47091_2_;
-		this.texturePositionY = p_i47091_3_;
+		this.pos = pos;
+		this.u = u;
+		this.v = v;
 	}
 }

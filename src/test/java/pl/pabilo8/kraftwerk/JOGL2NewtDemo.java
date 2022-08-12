@@ -11,7 +11,7 @@ import com.jogamp.opengl.util.FPSAnimator;
  *
  */
 public class JOGL2NewtDemo {
-	private static String TITLE = "JOGL 2 with NEWT";  // window's title
+	private static final String TITLE = "JOGL 2 with NEWT";  // window's title
 	private static final int WINDOW_WIDTH = 640;  // width of the drawable
 	private static final int WINDOW_HEIGHT = 480; // height of the drawable
 	private static final int FPS = 60; // animator's target frames per second

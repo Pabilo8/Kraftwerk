@@ -9,6 +9,7 @@ import java.util.Random;
  * @since 21.07.2021
  * Based on unrightfully stolen Minecraft's MathHelper class (pls don't sue)
  */
+@SuppressWarnings({"unused", ""})
 public class MathUtils
 {
 	public static final float SQRT_2 = sqrt(2.0F);
@@ -17,8 +18,8 @@ public class MathUtils
 	 */
 	private static final float[] SIN_TABLE = new float[65536];
 	private static final Random RANDOM = new Random();
-	private static final double[] ASINE_TAB;
-	private static final double[] COS_TAB;
+	private static final double[] ASIN_TABLE;
+	private static final double[] COS_TABLE;
 
 	static
 	{
@@ -27,15 +28,15 @@ public class MathUtils
 			SIN_TABLE[i] = (float)Math.sin((double)i*Math.PI*2.0D/65536.0D);
 		}
 
-		ASINE_TAB = new double[257];
-		COS_TAB = new double[257];
+		ASIN_TABLE = new double[257];
+		COS_TABLE = new double[257];
 
 		for(int j = 0; j < 257; ++j)
 		{
 			double d0 = (double)j/256.0D;
 			double d1 = Math.asin(d0);
-			COS_TAB[j] = Math.cos(d1);
-			ASINE_TAB[j] = d1;
+			COS_TABLE[j] = Math.cos(d1);
+			ASIN_TABLE[j] = d1;
 		}
 	}
 
@@ -57,7 +58,7 @@ public class MathUtils
 
 	public static float sqrt(float value)
 	{
-		return (float)Math.sqrt((double)value);
+		return (float)Math.sqrt(value);
 	}
 
 	public static float sqrt(double value)
@@ -67,11 +68,11 @@ public class MathUtils
 
 	public static Vec3d offsetPosDirection(float offset, double yaw, double pitch)
 	{
-		double yy = (sin((float)pitch)*offset);
-		double true_offset = (cos((float)pitch)*offset);
+		double yy = sin((float)pitch)*offset;
+		double true_offset = cos((float)pitch)*offset;
 
-		double xx = (sin((float)yaw)*true_offset);
-		double zz = (cos((float)yaw)*true_offset);
+		double xx = sin((float)yaw)*true_offset;
+		double zz = cos((float)yaw)*true_offset;
 
 		return new Vec3d(xx, yy, zz);
 	}
@@ -83,14 +84,7 @@ public class MathUtils
 	 */
 	public static int clamp(int num, int min, int max)
 	{
-		if (num < min)
-		{
-			return min;
-		}
-		else
-		{
-			return num > max ? max : num;
-		}
+		return num < min?min: Math.min(num, max);
 	}
 
 	/**
@@ -99,53 +93,39 @@ public class MathUtils
 	 */
 	public static float clamp(float num, float min, float max)
 	{
-		if (num < min)
-		{
-			return min;
-		}
-		else
-		{
-			return num > max ? max : num;
-		}
+		return num < min?min: Math.min(num, max);
 	}
 
 	public static double clamp(double num, double min, double max)
 	{
-		if (num < min)
-		{
-			return min;
-		}
-		else
-		{
-			return num > max ? max : num;
-		}
+		return num < min?min: Math.min(num, max);
 	}
 
 	/**
 	 * Rounds the first parameter up to the next interval of the second parameter.
-	 *
+	 * <p>
 	 * For instance, {@code roundUp(1, 4)} returns 4; {@code roundUp(0, 4)} returns 0; and {@code roundUp(4, 4)} returns
 	 * 4.
 	 */
 	public static int roundUp(int number, int interval)
 	{
-		if (interval == 0)
+		if(interval==0)
 		{
 			return 0;
 		}
-		else if (number == 0)
+		else if(number==0)
 		{
 			return interval;
 		}
 		else
 		{
-			if (number < 0)
+			if(number < 0)
 			{
 				interval *= -1;
 			}
 
-			int i = number % interval;
-			return i == 0 ? number : number + interval - i;
+			int i = number%interval;
+			return i==0?number: number+interval-i;
 		}
 	}
 }

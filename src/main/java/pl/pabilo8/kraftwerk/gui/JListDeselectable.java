@@ -12,7 +12,7 @@ import java.awt.event.MouseEvent;
  */
 public class JListDeselectable<E> extends JList<E>
 {
-	public JListDeselectable(ListModel dataModel)
+	public JListDeselectable(ListModel<E> dataModel)
 	{
 		super(dataModel);
 		addMouseListener(new MouseAdapter()
@@ -34,6 +34,7 @@ public class JListDeselectable<E> extends JList<E>
 						.getMenuShortcutKeyMask())!=0;
 			}
 		});
+		setComponentPopupMenu(new StandardPopupMenu());
 	}
 
 	@Override

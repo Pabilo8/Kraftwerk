@@ -1,13 +1,18 @@
 package pl.pabilo8.kraftwerk.editor;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import pl.pabilo8.kraftwerk.Kraftwerk;
 import pl.pabilo8.kraftwerk.editor.elements.ModelElement;
 import pl.pabilo8.kraftwerk.editor.elements.ModelProp;
 import pl.pabilo8.kraftwerk.editor.elements.ModelTexture;
+import pl.pabilo8.kraftwerk.gui.Icons;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeModel;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -15,6 +20,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.stream.IntStream;
 
 /**
  * An editor project class, contains all project information, such as elements, texture references, author, date.
@@ -26,7 +33,9 @@ import java.util.Date;
 public class EditorProject
 {
 	//All the elements of the model (boxes, shapeboxes, etc.)
-	public ArrayList<ModelElement> elements = new ArrayList<>();
+	public final DefaultMutableTreeNode rootElement = new DefaultMutableTreeNode("Root", true);
+	public TreeModel elementTreeModel = null;
+
 	//Props referenced in the model, in most cases these will not be exported, they should be included in screenshots/recordings
 	public ArrayList<ModelProp> props = new ArrayList<>();
 	//Textures referenced in the model, they are NOT saved in project files
@@ -59,6 +68,13 @@ public class EditorProject
 		json.addProperty("last_edit_date", SimpleDateFormat.getInstance().format(new Date(System.currentTimeMillis())));
 		json.addProperty("restriction_template", template.getName());
 
+		JsonArray textures = new JsonArray();
+		for(ModelTexture texture : this.textures)
+			textures.add(texture.toJSON());
+		json.add("textures", textures);
+		json.add("elements", getElementsJSON());
+
+
 		return json;
 	}
 
@@ -88,26 +104,156 @@ public class EditorProject
 		{
 			Kraftwerk.logger.warning("Incorrect restriction template on model file, do NOT change stuff... or if you want, at least RTFM!");
 		}
+
+		if(json.has("textures"))
+		{
+			JsonArray textures = json.get("textures").getAsJsonArray();
+			for(JsonElement tex : textures)
+				if(tex.isJsonObject())
+				{
+					try
+					{
+						project.textures.add(new ModelTexture(tex.getAsJsonObject()));
+					}
+					catch(MalformedURLException e)
+					{
+						Kraftwerk.logger.warning("Incorrect texture data, have you tinkered with it?");
+					}
+				}
+		}
+
+		if(json.has("elements"))
+		{
+			project.loadElementsFromJSON(json.get("elements").getAsJsonArray(), project.rootElement);
+		}
+
+		Kraftwerk.logger.info(project.rootElement.toString());
+
+
 		return project;
 	}
 
-	public void addTexture(@Nullable File file)
+	@Nullable
+	public ModelTexture addTexture(@Nullable File file)
 	{
 		if(file==null)
-			return;
+			return null;
 
 		if(template.onlyOneTexture&&textures.size() > 0)
-			return;
+			return null;
 
 		try
 		{
 			ModelTexture texture = new ModelTexture(file.toURI().toURL());
 			textures.add(texture);
-			Kraftwerk.INSTANCE.panelTextures.refresh();
+			SwingUtilities.invokeLater(Kraftwerk.INSTANCE.panelTextures::refresh);
+			SwingUtilities.invokeLater(Kraftwerk.INSTANCE.panelPartProperties::refresh);
+			return texture;
 		}
 		catch(MalformedURLException e)
 		{
 			Kraftwerk.logger.warning("Couldn't load texture from file, "+e.getMessage());
+		}
+		return null;
+	}
+
+	public boolean addElement(ModelElement element)
+	{
+		return addElement(element, null);
+	}
+
+	public boolean addElement(ModelElement element, @Nullable DefaultMutableTreeNode parent)
+	{
+		if(template.onlyCuboids&&!element.isCuboid())
+			return false;
+		if(parent!=null)
+			parent.add(element);
+		else
+			rootElement.add(element);
+		return true;
+	}
+
+	public int getPartCount()
+	{
+		if(elementTreeModel==null)
+			return 0;
+		return getPartCount(elementTreeModel, rootElement)-1;
+	}
+
+	private int getPartCount(TreeModel model, Object node)
+	{
+		int count = 1;
+		int nChildren = model.getChildCount(node);
+		count += IntStream.range(0, nChildren).map(i -> getPartCount(model, model.getChild(node, i))).sum();
+		return count;
+	}
+
+	public JsonArray getElementsJSON()
+	{
+		JsonArray elements = new JsonArray();
+		if(elementTreeModel==null)
+			return elements;
+
+		Enumeration modelElements = rootElement.children();
+		while(modelElements.hasMoreElements())
+		{
+			Object o = modelElements.nextElement();
+			if(o instanceof ModelElement)
+			{
+				ModelElement model = (ModelElement)o;
+				JsonObject json = model.toJSON();
+				if(model.getChildCount() > 0)
+					json.add("children", getChildrenElementsJSON(model));
+				elements.add(json);
+			}
+		}
+		return elements;
+	}
+
+	public static JsonArray getChildrenElementsJSON(DefaultMutableTreeNode element)
+	{
+		JsonArray elements = new JsonArray();
+
+		Enumeration modelElements = element.children();
+		while(modelElements.hasMoreElements())
+		{
+			Object o = modelElements.nextElement();
+			if(o instanceof DefaultMutableTreeNode)
+			{
+				ModelElement model = null;
+				if(((DefaultMutableTreeNode)o).getUserObject() instanceof ModelElement)
+					model = (ModelElement)((DefaultMutableTreeNode)o).getUserObject();
+				else if(o instanceof ModelElement)
+					model = (ModelElement)o;
+
+				if(model==null)
+					continue;
+
+				JsonObject json = model.toJSON();
+				if(((DefaultMutableTreeNode)o).getChildCount() > 0)
+					json.add("children", getChildrenElementsJSON((DefaultMutableTreeNode)o));
+				elements.add(json);
+			}
+		}
+		return elements;
+	}
+
+	public void loadElementsFromJSON(JsonArray array, DefaultMutableTreeNode parent)
+	{
+		for(JsonElement jsonElement : array)
+		{
+			if(!jsonElement.isJsonObject())
+				break;
+			JsonObject obj = jsonElement.getAsJsonObject();
+			ModelElement element = Kraftwerk.supplyElement(obj.get("type").getAsString());
+			if(element!=null)
+			{
+				Kraftwerk.logger.info(obj.toString());
+				element.fromJSON(obj);
+				if(obj.has("children"))
+					loadElementsFromJSON(obj.get("children").getAsJsonArray(), element);
+				addElement(element, parent);
+			}
 		}
 	}
 
@@ -135,17 +281,12 @@ public class EditorProject
 
 		ModelRestrictionTemplate(boolean onlyOneTexture, boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials)
 		{
-			this(onlyOneTexture, onlyBoxUVs, onlyVanillaRotations, onlyCuboids, multipartMaterials, null);
-		}
-
-		ModelRestrictionTemplate(boolean onlyOneTexture, boolean onlyBoxUVs, boolean onlyVanillaRotations, boolean onlyCuboids, boolean multipartMaterials, @Nullable Icon icon)
-		{
 			this.onlyOneTexture = onlyOneTexture;
 			this.onlyBoxUVs = onlyBoxUVs;
 			this.onlyVanillaRotations = onlyVanillaRotations;
 			this.onlyCuboids = onlyCuboids;
 			this.multipartMaterials = multipartMaterials;
-			this.icon = icon;
+			this.icon = Icons.loadSVGIcon("model_worker/"+getName());
 		}
 
 		public String getName()

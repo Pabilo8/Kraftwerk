@@ -7,6 +7,7 @@ import com.jogamp.opengl.GLStateKeeper;
 import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.util.FPSAnimator;
+import pl.pabilo8.kraftwerk.Kraftwerk;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -25,17 +26,22 @@ import java.util.logging.Logger;
  */
 public abstract class PanelOpenGLBase extends JPanel implements GLEventListener, MouseListener, MouseMotionListener, KeyListener
 {
-	private GLCanvas glArea;
-	private FPSAnimator animator;
+	private final GLCanvas glArea;
+	private final FPSAnimator animator;
 	GL4bc gl = null;
 	GLAutoDrawable drawable_ = null;
 
-	public static Logger logger = Logger.getLogger("Kraftwerk.OPENGL");
+	public static Logger logger = Logger.getLogger("OPENGL");
+	static {
+		logger.setParent(Kraftwerk.logger);
+
+		logger.info("Test!");
+	}
 
 	private long time_previous = -1L;
 	private double _fps;
 	private int fps_counter;
-	private boolean[] mouse_button_pressed = new boolean[3];
+	private final boolean[] mouse_button_pressed = new boolean[3];
 	private boolean first_setup = true;
 
 	public PanelOpenGLBase(int fps)
@@ -168,7 +174,7 @@ public abstract class PanelOpenGLBase extends JPanel implements GLEventListener,
 
 	public boolean isMouseButtonPressed(int id)
 	{
-		return id > 0&&id < 4?this.mouse_button_pressed[id-1]: false;
+		return id > 0&&id < 4&&this.mouse_button_pressed[id-1];
 	}
 
 	public void mouseReleased(int x, int y, MouseEvent e)

@@ -1,0 +1,14 @@
+<!-- Copyright 2000-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file. -->
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs id="colors">
+        <linearGradient id="menuIconEnabled" fallback="Label.foreground">
+            <stop offset="0" stop-color="#AFB1B3"/>
+            <stop offset="1" stop-color="#AFB1B3"/>
+        </linearGradient>
+    </defs>
+    <g fill="url(#menuIconEnabled)">
+        <path d="M 1 6 L 1 14 L 11 14 L 11 13 L 13 14 L 15 14 L 15 6 L 13 6 L 11 7 L 11 6 L 1 6 z " />
+        <circle cx="3" cy="3" r="1.9999995" />
+        <circle cx="8" cy="3" r="1.9999995" />
+    </g>
+</svg>

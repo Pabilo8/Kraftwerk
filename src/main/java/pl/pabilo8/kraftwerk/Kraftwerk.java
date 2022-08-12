@@ -6,33 +6,46 @@ import com.github.weisj.darklaf.components.tabframe.TabFramePopup;
 import com.github.weisj.darklaf.components.tabframe.TabFrameTab;
 import com.github.weisj.darklaf.components.tabframe.TabFrameTabLabel;
 import com.github.weisj.darklaf.theme.DarculaTheme;
-import com.github.weisj.darklaf.util.DarkUIUtil;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.jogamp.opengl.GL4bc;
 import jnafilechooser.api.JnaFileChooser;
 import pl.pabilo8.kraftwerk.editor.EditorProject;
-import pl.pabilo8.kraftwerk.editor.EditorProject.ModelRestrictionTemplate;
-import pl.pabilo8.kraftwerk.editor.modelworkers.DefaultModelExporters;
-import pl.pabilo8.kraftwerk.editor.modelworkers.DefaultModelImporters;
-import pl.pabilo8.kraftwerk.editor.modelworkers.ModelExporter;
-import pl.pabilo8.kraftwerk.editor.modelworkers.ModelImporter;
-import pl.pabilo8.kraftwerk.gui.*;
+import pl.pabilo8.kraftwerk.editor.ICopyAbleContainer;
+import pl.pabilo8.kraftwerk.editor.elements.ModelElement;
+import pl.pabilo8.kraftwerk.editor.elements.ModelElementBox;
+import pl.pabilo8.kraftwerk.editor.elements.ModelElementShapebox;
+import pl.pabilo8.kraftwerk.editor.modelworkers.*;
+import pl.pabilo8.kraftwerk.gui.AboutDialog;
+import pl.pabilo8.kraftwerk.gui.FindActionDialog;
+import pl.pabilo8.kraftwerk.gui.Icons;
+import pl.pabilo8.kraftwerk.gui.SettingsDialog;
 import pl.pabilo8.kraftwerk.gui.action.ActionCommand;
-import pl.pabilo8.kraftwerk.gui.action.ActionNewProjectFromTemplate;
 import pl.pabilo8.kraftwerk.gui.panel.*;
+import pl.pabilo8.kraftwerk.utils.CommandLineUtils.CommandThread;
 import pl.pabilo8.kraftwerk.utils.GuiUtils;
+import pl.pabilo8.kraftwerk.utils.GuiUtils.LocalizeMethod;
 import pl.pabilo8.kraftwerk.utils.ResourceUtils;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.*;
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.logging.FileHandler;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * @author Pabilo8
@@ -45,32 +58,25 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 
 	public static Kraftwerk INSTANCE;
 	private static final HashMap<KeyStroke, Action> keyBinds = new HashMap<>();
-
-	JMenuBar menuBarTop;
-	private JMenu menuFile, menuEdit, menuView, menuModel, menuRendering, menuHelp;
-	private JMenu menuItemNew, menuItemRecent, menuItemImport, menuItemExport;
-	private JMenuItem menuItemOpen, menuItemSave, menuItemSaveAs, menuSettings;
-	private JMenuItem menuItemUndo, menuItemRedo, menuItemCut, menuItemCopy, menuItemPaste, menuItemDelete;
-	private JMenuItem menuItemToggleCamera;
-	private JMenuItem menuItemFindAction, menuItemDocs, menuItemGettingStarted, menuItemChangelog, menuItemAbout;
-	private JMenuItem menuItemScreenshot, menuItemRecord360;
+	public static final ArrayList<ActionCommand> actionCommands = new ArrayList<>();
 
 	public static Image programIcon;
 
+	public Thread threadCMD;
 	public JPanel panelMain;
 	public PanelModelEditor panelModelEditor;
 	public EditorProject currentProject;
 	public JTabFrame tabFrame;
 
-	private ArrayList<PanelTab> registeredTabs = new ArrayList<>();
-	public PanelTab panelPartProperties, panelPartPreview, panelModelElements, panelModelProps, panelUV;
+	private final ArrayList<PanelTab> registeredTabs = new ArrayList<>();
+	public PanelTab panelPartPreview, panelModelProps, panelUV;
 	public PanelTabTextures panelTextures;
+	public PanelTabElements panelModelElements;
+	public PanelTabProperties panelPartProperties;
 
-	public ArrayList<ModelImporter> modelImporters = new ArrayList<>();
-	public ArrayList<ModelExporter> modelExporters = new ArrayList<>();
-	private final ArrayList<JMenuItem> modelImporterButtons = new ArrayList<>();
-	private final ArrayList<JMenuItem> modelExporterButtons = new ArrayList<>();
-	private final ArrayList<JMenuItem> modelTemplateButtons = new ArrayList<>();
+	public ArrayList<ModelWorker.ModelImporter> modelImporters = new ArrayList<>();
+	public ArrayList<ModelWorker.ModelExporter> modelExporters = new ArrayList<>();
+	public HashMap<String, Supplier<ModelElement>> modelElementSuppliers = new HashMap<>();
 
 	public static GL4bc gl;
 
@@ -83,6 +89,21 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 	{
 		System.setProperty("java.util.logging.SimpleFormatter.format",
 				"[%1$tT] [%4$s] %5$s%6$s%n");
+		try
+		{
+
+			// This block configure the logger with handler and formatter
+			FileHandler fh = new FileHandler("kraftwerk.log");
+			logger.addHandler(fh);
+			SimpleFormatter formatter = new SimpleFormatter();
+			fh.setFormatter(formatter);
+
+		}
+		catch(SecurityException|IOException e)
+		{
+			logger.severe("Unable to save log to a file. Messages will be available in console only.");
+		}
+
 	}
 
 	public Kraftwerk() throws HeadlessException
@@ -149,14 +170,13 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 
 		registerModelImporters();
 		registerModelExporters();
+		registerModelElementSuppliers();
 
 		initCenter();
 		preInitTabs();
 		initTabs();
 		initKeyBinds();
-
-		if(Kraftwerk.INSTANCE.currentProject==null)
-			logger.info("no project!");
+		initBottomBar();
 
 		Kraftwerk.INSTANCE.currentProject = new EditorProject();
 		if(args.length > 0)
@@ -174,9 +194,17 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		onProjectLoad(Kraftwerk.INSTANCE.currentProject);
 
 		refresh();
-
+		if(Arrays.asList(args).contains("--cmd"))
+			createCommandLineThread();
 
 		logger.info("GUI Initialization Completed");
+	}
+
+	public static void createCommandLineThread()
+	{
+		logger.info("Initialized command line reader");
+		Kraftwerk.INSTANCE.threadCMD = new Thread(new CommandThread());
+		Kraftwerk.INSTANCE.threadCMD.start();
 	}
 
 	public static int createQuitDialog()
@@ -197,11 +225,13 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		registerModelImporter(new DefaultModelImporters.VanillaJSONImporter());
 		registerModelImporter(new DefaultModelImporters.ForgeMultipartImporter());
 		registerModelImporter(new DefaultModelImporters.JavaTMTImporter());
+		registerModelImporter(new DefaultModelImporters.JsonTMTImporter());
 		registerModelImporter(new DefaultModelImporters.SMPToolboxImporter());
 		registerModelImporter(new DefaultModelImporters.BlockBenchImporter());
 		registerModelImporter(new DefaultModelImporters.TechneImporter());
 		registerModelImporter(new DefaultModelImporters.TabulaImporter());
 		registerModelImporter(new DefaultModelImporters.ModelLoaderMCXImporter());
+		registerModelImporter(new DefaultModelImporters.OBJImporter());
 	}
 
 	private static void registerModelExporters()
@@ -210,16 +240,27 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		registerModelExporter(new DefaultModelExporters.VanillaJSONExporter());
 		registerModelExporter(new DefaultModelExporters.ForgeMultipartExporter());
 		registerModelExporter(new DefaultModelExporters.JavaTMTExporter());
+		registerModelExporter(new DefaultModelExporters.JsonTMTExporter());
 		registerModelExporter(new DefaultModelExporters.SMPToolboxExporter());
 		registerModelExporter(new DefaultModelExporters.BlockBenchExporter());
 		registerModelExporter(new DefaultModelExporters.TechneExporter());
 		registerModelExporter(new DefaultModelExporters.TabulaExporter());
 		registerModelExporter(new DefaultModelExporters.ModelLoaderMCXExporter());
+		registerModelExporter(new DefaultModelExporters.OBJExporter());
+	}
+
+	private static void registerModelElementSuppliers()
+	{
+		//registerModelSupplier("face", ModelElementFace::new);
+		registerModelSupplier("box", ModelElementBox::new);
+		registerModelSupplier("shapebox", ModelElementShapebox::new);
+		//registerModelSupplier("shape", ModelElementShape::new);
 	}
 
 	private static void refresh()
 	{
-		initMenuBar();
+		actionCommands.clear();
+		INSTANCE.setJMenuBar(new MenuBarTop());
 		INSTANCE.setIconImage(programIcon);
 		INSTANCE.validate();
 		INSTANCE.registeredTabs.forEach(PanelTab::refresh);
@@ -239,115 +280,28 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode().getRefreshRate();
 	}
 
-	private static void initMenuBar()
-	{
-		INSTANCE.menuBarTop = new JMenuBar();
-		INSTANCE.setJMenuBar(INSTANCE.menuBarTop);
-
-		INSTANCE.menuFile = GuiUtils.getMenu("menubar.file", 'F');
-		INSTANCE.menuEdit = GuiUtils.getMenu("menubar.edit", 'E');
-		INSTANCE.menuView = GuiUtils.getMenu("menubar.view", 'V');
-		INSTANCE.menuModel = GuiUtils.getMenu("menubar.model", 'M');
-		INSTANCE.menuRendering = GuiUtils.getMenu("menubar.render", 'R');
-		INSTANCE.menuHelp = GuiUtils.getMenu("menubar.help", 'H');
-
-		INSTANCE.menuBarTop.add(INSTANCE.menuFile);
-		INSTANCE.menuBarTop.add(INSTANCE.menuEdit);
-		INSTANCE.menuBarTop.add(INSTANCE.menuView);
-		INSTANCE.menuBarTop.add(INSTANCE.menuModel);
-		INSTANCE.menuBarTop.add(INSTANCE.menuRendering);
-		INSTANCE.menuBarTop.add(INSTANCE.menuHelp);
-
-		INSTANCE.menuItemNew = GuiUtils.getMenu("menubar.file.new", 'N', "FileView.fileIcon");
-		INSTANCE.menuItemRecent = GuiUtils.getMenu("menubar.file.recent", 'R');
-		INSTANCE.menuItemImport = GuiUtils.getMenu("menubar.file.import", 'I');
-		INSTANCE.menuItemExport = GuiUtils.getMenu("menubar.file.export", 'E');
-
-		Kraftwerk.INSTANCE.modelImporterButtons.clear();
-		for(ModelImporter importer : Kraftwerk.INSTANCE.modelImporters)
-		{
-			JMenuItem item = GuiUtils.registerLocalized(new JMenuItem("model_worker."+importer.name));
-			if(importer.icon!=null)
-				item.setIcon(importer.icon);
-
-			item.setAction(importer.action);
-			item.setText("model_worker."+importer.name);
-			Kraftwerk.INSTANCE.modelImporterButtons.add(item);
-			INSTANCE.menuItemImport.add(item);
-		}
-
-		Kraftwerk.INSTANCE.modelExporterButtons.clear();
-		for(ModelExporter exporter : Kraftwerk.INSTANCE.modelExporters)
-		{
-			JMenuItem item = GuiUtils.registerLocalized(new JMenuItem("model_worker."+exporter.name));
-			if(exporter.icon!=null)
-				item.setIcon(exporter.icon);
-			item.setAction(exporter.action);
-			item.setText("model_worker."+exporter.name);
-			Kraftwerk.INSTANCE.modelExporterButtons.add(item);
-			INSTANCE.menuItemExport.add(item);
-		}
-
-		Kraftwerk.INSTANCE.modelTemplateButtons.clear();
-		for(ModelRestrictionTemplate template : ModelRestrictionTemplate.values())
-		{
-			JMenuItem item = GuiUtils.registerLocalized(new JMenuItem("model_template."+template.getName()));
-			if(template.icon!=null)
-				item.setIcon(template.icon);
-			item.setAction(new ActionNewProjectFromTemplate(template));
-			item.setText("model_template."+template.getName());
-			Kraftwerk.INSTANCE.modelTemplateButtons.add(item);
-			INSTANCE.menuItemNew.add(item);
-		}
-
-
-		GuiUtils.addToMenu(INSTANCE.menuFile,
-				INSTANCE.menuItemNew,
-				INSTANCE.menuItemRecent,
-				INSTANCE.menuItemOpen = GuiUtils.getActionItem("menubar.file.open", "open", 'O', "FileView.directoryIcon"),
-				INSTANCE.menuItemSave = GuiUtils.getActionItem("menubar.file.save", "save", 'S', "FileView.floppyDriveIcon"),
-				INSTANCE.menuItemSaveAs = GuiUtils.getActionItem("menubar.file.save_as", "save_as", 'A'),
-				INSTANCE.menuItemImport,
-				INSTANCE.menuItemExport,
-				INSTANCE.menuSettings = GuiUtils.getActionItem("menubar.file.settings", "settings", 'T', UIManager.getIcon("ThemeSettings.icon"))
-		);
-
-		GuiUtils.addToMenu(INSTANCE.menuEdit,
-				INSTANCE.menuItemUndo = GuiUtils.getActionItem("menubar.edit.undo", "undo", null),
-				INSTANCE.menuItemRedo = GuiUtils.getActionItem("menubar.edit.redo", "redo", null),
-				INSTANCE.menuItemCut = GuiUtils.getActionItem("menubar.edit.cut", "cut", null),
-				INSTANCE.menuItemCopy = GuiUtils.getActionItem("menubar.edit.copy", "copy", null),
-				INSTANCE.menuItemPaste = GuiUtils.getActionItem("menubar.edit.paste", "paste", null),
-				INSTANCE.menuItemDelete = GuiUtils.getActionItem("menubar.edit.delete", "delete", null)
-		);
-
-		GuiUtils.addToMenu(INSTANCE.menuView,
-				INSTANCE.menuItemToggleCamera = GuiUtils.getActionItem("menubar.view.toggle_camera", "toggle_camera")
-		);
-
-		GuiUtils.addToMenu(INSTANCE.menuRendering,
-				INSTANCE.menuItemScreenshot = GuiUtils.getActionItem("menubar.render.screenshot", "screenshot"),
-				INSTANCE.menuItemRecord360 = GuiUtils.getActionItem("menubar.render.record360", "record360")
-		);
-
-		GuiUtils.addToMenu(INSTANCE.menuHelp,
-				INSTANCE.menuItemFindAction = GuiUtils.getActionItem("menubar.help.find_action", "find_action", 'F'),
-				INSTANCE.menuItemDocs = GuiUtils.getActionItem("menubar.help.docs", "docs", 'D', "FileView.textFileIcon"),
-				INSTANCE.menuItemGettingStarted = GuiUtils.getActionItem("menubar.help.getting_started", "getting_started", 'S'),
-				INSTANCE.menuItemChangelog = GuiUtils.getActionItem("menubar.help.changelog", "changelog", 'C'),
-				INSTANCE.menuItemAbout = GuiUtils.getActionItem("menubar.help.about", "about", 'A')
-
-		);
-	}
-
-	public static void registerModelImporter(ModelImporter modelImporter)
+	public static void registerModelImporter(ModelWorker.ModelImporter modelImporter)
 	{
 		Kraftwerk.INSTANCE.modelImporters.add(modelImporter);
 	}
 
-	public static void registerModelExporter(ModelExporter modelExporter)
+	public static void registerModelExporter(ModelWorker.ModelExporter modelExporter)
 	{
 		Kraftwerk.INSTANCE.modelExporters.add(modelExporter);
+	}
+
+	public static void registerModelSupplier(String name, Supplier<ModelElement> supplier)
+	{
+		Kraftwerk.INSTANCE.modelElementSuppliers.put(name, supplier);
+	}
+
+	@Nullable
+	public static ModelElement supplyElement(String name)
+	{
+		Supplier<ModelElement> supplier = Kraftwerk.INSTANCE.modelElementSuppliers.get(name);
+		if(supplier==null)
+			return null;
+		return supplier.get();
 	}
 
 	private static void initCenter()
@@ -376,6 +330,14 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 	{
 		for(PanelTab tab : INSTANCE.registeredTabs)
 			tab.init();
+
+		INSTANCE.panelModelElements.setSize((int)(INSTANCE.getWidth()*0.25f),INSTANCE.panelModelElements.getHeight());
+		INSTANCE.panelTextures.setSize((int)(INSTANCE.getWidth()*0.3f),INSTANCE.panelModelElements.getHeight());
+	}
+
+	private static void initBottomBar()
+	{
+
 	}
 
 	private static void initKeyBinds()
@@ -389,11 +351,14 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 		addKeyBind("cut", KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_MASK));
 		addKeyBind("copy", KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_MASK));
 		addKeyBind("paste", KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_MASK));
+		addKeyBind("remove", KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, KeyEvent.KEY_LOCATION_UNKNOWN));
+
+		addKeyBind("find_action", KeyStroke.getKeyStroke(KeyEvent.VK_A, KeyEvent.CTRL_MASK+KeyEvent.SHIFT_MASK));
 	}
 
 	public static void addKeyBind(String action, KeyStroke key)
 	{
-		keyBinds.put(key, new ActionCommand(action));
+		keyBinds.put(key, ActionCommand.getActionCommand(action));
 	}
 
 	public static void setLookAndFeel()
@@ -428,6 +393,16 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 				if(componentAt instanceof TabFrameTabLabel)
 					((TabFrameTabLabel)componentAt).setTitle(title);
 			}
+			else if(component instanceof JButton)
+			{
+				LocalizeMethod method = ((LocalizeMethod)component.getClientProperty("kraftwerk.i18n"));
+
+				if(method==null||method==LocalizeMethod.TOOLTIP)
+					component.setToolTipText(ResourceUtils.translateString(Kraftwerk.res, component.getToolTipText()));
+				else if(method==LocalizeMethod.ACTION_TOOLTIP)
+					component.setToolTipText(((ActionCommand)((JButton)component).getAction()).getTranslatedName());
+
+			}
 		}
 
 		Kraftwerk.INSTANCE.localizeList.clear();
@@ -443,10 +418,20 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 
 	public void commandPerformed(ActionCommand command)
 	{
+		logger.info(String.format("command>%s%s", command.command,
+				Arrays.toString(command.arguments)
+						.replace('[', ' ')
+						.replace(']', ' ')
+						.replaceAll("\\s+$", "")
+		));
+
 		switch(command.command)
 		{
 			case "about":
 				new AboutDialog();
+				break;
+			case "find_action":
+				new FindActionDialog();
 				break;
 			case "open":
 			{
@@ -465,12 +450,30 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 			case "settings":
 				new SettingsDialog();
 				break;
+			case "import_model":
+			{
+				if(command.arguments.length > 0)
+				{
+					Optional<ModelWorker.ModelImporter> first = modelImporters.stream().filter(modelImporter -> modelImporter.name.equals(command.arguments[0])).findFirst();
+					first.ifPresent(ModelWorker::handleDialog);
+				}
+			}
+			break;
+			case "export_model":
+			{
+				if(command.arguments.length > 0)
+				{
+					Optional<ModelWorker.ModelExporter> first = modelExporters.stream().filter(modelExporter -> modelExporter.name.equals(command.arguments[0])).findFirst();
+					first.ifPresent(ModelWorker::handleDialog);
+				}
+			}
+			break;
 			case "open_texture":
 			{
 				GuiUtils.openTexture();
 			}
 			break;
-			case "edit_texture":
+			case "texture_properties":
 			{
 
 			}
@@ -480,14 +483,83 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 				INSTANCE.panelTextures.removeSelectedTexture();
 			}
 			break;
+			case "edit_texture":
+			{
+				INSTANCE.panelTextures.editSelectedTexture();
+			}
+			break;
+			case "add_element":
+			{
+				if(command.arguments.length > 0)
+					INSTANCE.panelModelElements.addModelElement(command.arguments[0]);
+			}
+			break;
 			case "toggle_camera":
 				panelModelEditor.toggleCamera();
 				break;
 			case "refresh":
 				refresh();
 				break;
+			case "cut":
+			case "copy":
+			{
+				Component owner = INSTANCE.getMostRecentFocusOwner();
+				if(owner instanceof ICopyAbleContainer)
+				{
+					ICopyAbleContainer tree = (ICopyAbleContainer)owner;
+					JsonArray array = command.command.equals("copy")?tree.handleCopy(): tree.handleCut();
+
+					if(!array.isEmpty())
+					{
+						Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+						StringSelection selection = new StringSelection(array.toString());
+						clipboard.setContents(selection, selection);
+
+						logger.info(selection.toString());
+					}
+				}
+			}
+			break;
+			case "paste":
+			{
+				Component owner = INSTANCE.getMostRecentFocusOwner();
+				Transferable contents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(this);
+
+				if(owner instanceof ICopyAbleContainer&&contents.isDataFlavorSupported(DataFlavor.stringFlavor))
+				{
+					try
+					{
+						String data = (String)contents.getTransferData(DataFlavor.stringFlavor);
+						JsonElement jsonElement = JsonParser.parseString(data);
+						JsonArray array = null;
+						if(jsonElement.isJsonArray())
+							array = ((JsonArray)jsonElement);
+						else if(jsonElement.isJsonObject())
+						{
+							array = new JsonArray();
+							array.add(jsonElement);
+						}
+
+						if(array!=null)
+							((ICopyAbleContainer)owner).handlePaste(array);
+
+					}
+					catch(Exception ignored)
+					{
+
+					}
+
+				}
+			}
+			break;
+			case "remove":
+			{
+				Component owner = INSTANCE.getMostRecentFocusOwner();
+				if(owner instanceof ICopyAbleContainer)
+					((ICopyAbleContainer)owner).handleRemove();
+			}
+			break;
 		}
-		logger.info(String.format("command>%s", command.command));
 	}
 
 	@Override
@@ -521,5 +593,9 @@ public class Kraftwerk extends JFrame implements ActionListener, ChangeListener
 
 		if(Kraftwerk.INSTANCE.currentProject!=project)
 			Kraftwerk.INSTANCE.currentProject = project;
+
+		Kraftwerk.INSTANCE.registeredTabs.forEach(PanelTab::refresh);
+		Kraftwerk.INSTANCE.registeredTabs.forEach(PanelTab::validate);
+		Kraftwerk.INSTANCE.registeredTabs.forEach(PanelTab::repaint);
 	}
 }

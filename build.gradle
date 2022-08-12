@@ -3,6 +3,7 @@ plugins {
     id "java"
     id "idea"
     id 'application'
+    id 'edu.sc.seis.launch4j' version '2.5.1' //allows building a runner for windows
 }
 
 group 'pl.pabilo8.kraftwerk'
@@ -11,24 +12,24 @@ project.version = version_major + '.' + version_minor + '.' + version_patch
 repositories {
     mavenCentral()
     maven { url 'https://jitpack.io/' } //DarkLaf, NBT, JNAFileChooser
+    maven { url "https://plugins.gradle.org/m2/" } //launch4j
 }
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
 
-    implementation 'com.github.weisj:darklaf-core:2.7.2' //Fancy IntelliJ-Like Theme
+    implementation 'com.github.weisj:darklaf-core:2.7.3' //Fancy IntelliJ-Like Theme
     implementation 'org.jogamp.jogl:jogl-all-main:2.3.2' //Swing OpenGL
     implementation 'org.jogamp.gluegen:gluegen-rt-main:2.3.2' //Swing OpenGL
     implementation 'com.google.code.findbugs:jsr305:3.0.2' //Javax Annotations (NonNull, Nullable, etc.)
     implementation 'com.miglayout:miglayout-swing:5.3' //A great, flexible layout (do not update!
     implementation 'com.miglayout:miglayout-core:5.3' //Required by the above
 
-    implementation 'com.google.code.gson:gson:2.8.8' //JSON library
+    implementation 'com.google.code.gson:gson:2.8.9' //JSON library
     implementation 'com.github.Querz:NBT:6.1' //NBT
-    implementation 'com.github.steos:jnafilechooser:1.0'
-    //Native Windows file chooser with fallback to Swing's JFileChooser
-
+    implementation 'com.github.steos:jnafilechooser:1.0' //Native Windows file chooser with fallback to Swing's JFileChooser
+    //implementation 'com.github.blackears:svgSalamander:master-SNAPSHOT'
 }
 
 test {
@@ -46,9 +47,34 @@ application {
     mainClass = project.group + '.Kraftwerk'
 }
 
+//todo: find a way to merge these 2
 applicationDistribution.from(projectDir) {
     into ''
     var split = included_files.split(",")
     for (String val : split)
         it.include val
 }
+
+def distFiles = copySpec {
+    from '.'
+    var split = included_files.split(",")
+    for (String val : split)
+        include val
+}
+
+launch4j {
+    mainClassName = project.group + '.Kraftwerk'
+    icon = "${projectDir}/art/kraftwerk_icon.ico"
+    fileDescription = motto
+    version = project.version
+    textVersion = project.version
+    companyName = "Pabilo8"
+    copyright = "Made by Pabilo8. Licensed under GNU General Public License v3.0"
+}
+
+task addFilesToExe(type: Copy) {
+    with distFiles
+    into "$buildDir/launch4j"
+}
+
+createExe.finalizedBy(addFilesToExe)

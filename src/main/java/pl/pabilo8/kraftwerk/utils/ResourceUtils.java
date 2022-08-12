@@ -3,14 +3,13 @@ package pl.pabilo8.kraftwerk.utils;
 import pl.pabilo8.kraftwerk.Kraftwerk;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
@@ -70,7 +69,7 @@ public class ResourceUtils
 		}
 		catch(IOException e)
 		{
-			Kraftwerk.logger.info(String.format("Exception loading image %s", s));
+			Kraftwerk.logger.info(String.format("Exception loading file %s", s));
 		}
 
 		return is;
@@ -79,6 +78,13 @@ public class ResourceUtils
 	public static InputStream texStream(String s)
 	{
 		URL resource = Kraftwerk.class.getResource("textures/");
+		ClassLoader loader = new URLClassLoader(new URL[]{resource});
+		return loader.getResourceAsStream(s);
+	}
+
+	public static InputStream fontStream(String s)
+	{
+		URL resource = Kraftwerk.class.getResource("fonts/");
 		ClassLoader loader = new URLClassLoader(new URL[]{resource});
 		return loader.getResourceAsStream(s);
 	}
@@ -124,12 +130,25 @@ public class ResourceUtils
 		if(file.contains("assets")&&file.contains("textures"))
 		{
 			file = file.substring(file.indexOf("assets")+("assets/".length()));
-			System.out.println(file);
 			String domain = file.substring(0, file.indexOf("/textures"));
 			file = file.substring(file.indexOf("/textures")+"/textures/".length(), file.contains(".")?file.lastIndexOf('.'): file.length());
 			return String.format("%s:%s", domain, file);
 		}
 
 		return "minecraft:blocks/missingno";
+	}
+
+	@Nullable
+	public static URI getIconURI(String undo)
+	{
+		URL resource = Kraftwerk.class.getResource(String.format("textures/icons/%s.svg", undo));
+		try
+		{
+			return resource==null?null: resource.toURI();
+		}
+		catch(URISyntaxException e)
+		{
+			return null;
+		}
 	}
 }

@@ -177,7 +177,7 @@ public class ModelPlayer extends ModelBase
 		EMPTY,
 		ITEM,
 		BLOCK,
-		BOW_AND_ARROW;
+		BOW_AND_ARROW
 	}
 
 	private ModelRenderer addLimb(ModelRenderer bipedLeftArm, boolean l, int u, int v, float x, float y, float z, float expand)
@@ -240,9 +240,9 @@ public class ModelPlayer extends ModelBase
 
 		public static final int SIDE_ALL = SIDE_LEFT|SIDE_RIGHT|SIDE_TOP|SIDE_BOTTOM|SIDE_FRONT|SIDE_BACK;
 
-		private PositionTextureVertex[] vertexPositions;
+		private final PositionTextureVertex[] vertexPositions;
 
-		private TexturedQuad[] quadList;
+		private final TexturedQuad[] quadList;
 
 		private final float posX1;
 
@@ -324,6 +324,7 @@ public class ModelPlayer extends ModelBase
 		@Override
 		public void render(float scale)
 		{
+			Kraftwerk.gl.glEnable(3553);
 			for(int i = 0; i < quadList.length; i++)
 			{
 				if((visibleSides&(1<<i))!=0)
@@ -331,6 +332,7 @@ public class ModelPlayer extends ModelBase
 					quadList[i].draw(scale);
 				}
 			}
+			Kraftwerk.gl.glDisable(3553);
 		}
 	}
 }

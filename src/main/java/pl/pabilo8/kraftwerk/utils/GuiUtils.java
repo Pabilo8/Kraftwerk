@@ -1,5 +1,6 @@
 package pl.pabilo8.kraftwerk.utils;
 
+import com.github.weisj.darklaf.components.DynamicUI;
 import com.github.weisj.darklaf.components.tabframe.PanelPopup;
 import com.github.weisj.darklaf.components.tabframe.TabFramePopup;
 import com.github.weisj.darklaf.util.Alignment;
@@ -8,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import jnafilechooser.api.JnaFileChooser;
+import net.miginfocom.swing.MigLayout;
 import pl.pabilo8.kraftwerk.Kraftwerk;
 import pl.pabilo8.kraftwerk.editor.EditorProject;
 import pl.pabilo8.kraftwerk.gui.action.ActionCommand;
@@ -42,22 +44,17 @@ public class GuiUtils
 
 	public static JMenuItem getActionItem(String id, String action)
 	{
-		return getActionItem(id, action, null, (Icon)null);
+		return getActionItem(id, action, null, null);
 	}
 
 	public static JMenuItem getActionItem(String id, String action, Character mnemonic)
 	{
-		return getActionItem(id, action, mnemonic, (Icon)null);
+		return getActionItem(id, action, mnemonic, null);
 	}
 
 	public static JMenu getMenu(String id, @Nullable Character mnemonic)
 	{
-		return getMenu(id, mnemonic, (Icon)null);
-	}
-
-	public static JMenu getMenu(String id, @Nullable Character mnemonic, @Nullable String icon)
-	{
-		return getMenu(id, mnemonic, icon==null?null: UIManager.getIcon(icon));
+		return getMenu(id, mnemonic, null);
 	}
 
 	public static JMenu getMenu(String id, @Nullable Character mnemonic, @Nullable Icon icon)
@@ -74,23 +71,25 @@ public class GuiUtils
 	public static JMenuItem getActionItem(String id, String action, @Nullable Character mnemonic, @Nullable Icon icon)
 	{
 		JMenuItem item = registerLocalized(new JMenuItem(id));
-		item.setAction(new ActionCommand(action));
+		item.setAction(ActionCommand.getActionCommand(action));
 		item.setText(id);
 		if(icon!=null)
-			item.setIcon(UIManager.getIcon(icon));
+			item.setIcon(icon);
 		if(mnemonic!=null)
 			item.setMnemonic(mnemonic);
 		return item;
 	}
 
-	public static JMenuItem getActionItem(String id, String action, @Nullable Character mnemonic, @Nullable String icon)
+	public static JButton getIconButton(@Nullable Icon icon, int size, String action)
 	{
-		return getActionItem(id, action, mnemonic, icon==null?null: UIManager.getIcon(icon));
+		return getIconButton(icon, size, ActionCommand.getActionCommand(action));
 	}
 
-	public static JButton getIconButton(@Nullable Icon icon, int size)
+	public static JButton getIconButton(@Nullable Icon icon, int size, ActionCommand action)
 	{
 		JButton button = new JButton();
+		button.setAction(action);
+		button.setText("");
 		if(icon!=null)
 			button.setIcon(icon);
 		button.setPreferredSize(new Dimension(size, size));
@@ -100,10 +99,29 @@ public class GuiUtils
 		return button;
 	}
 
-	public static <T extends JMenuItem> T registerLocalized(T jMenu)
+	public static JButton getIconButton(@Nullable Icon icon, int size)
 	{
-		Kraftwerk.INSTANCE.localizeList.add(jMenu);
-		return jMenu;
+		return getIconButton(icon, size, "");
+	}
+
+	public static <T extends JComponent> T registerLocalized(T component, LocalizeMethod method)
+	{
+		registerLocalized(component);
+		component.putClientProperty("kraftwerk.i18n", method);
+		return component;
+	}
+
+	public static <T extends JComponent> T registerLocalized(T component)
+	{
+		Kraftwerk.INSTANCE.localizeList.add(component);
+		return component;
+	}
+
+	public enum LocalizeMethod
+	{
+		ACTION_TOOLTIP,
+		TOOLTIP,
+		TEXT,
 	}
 
 	public static void saveToFile(boolean forceNewFile)
@@ -184,5 +202,15 @@ public class GuiUtils
 				Kraftwerk.INSTANCE.currentProject.addTexture(file);
 		}
 
+	}
+
+	public static JPanel getTitledInternalPanel(String name)
+	{
+		JPanel panel = DynamicUI.withDynamic(new JPanel(new BorderLayout()),
+				c -> {
+					c.setBorder(BorderFactory.createTitledBorder(name));
+				});
+		panel.setLayout(new MigLayout("align left"));
+		return panel;
 	}
 }

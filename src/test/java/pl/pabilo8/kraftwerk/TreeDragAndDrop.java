@@ -111,12 +111,8 @@ class TreeTransferHandler extends TransferHandler
 		TreePath path = tree.getPathForRow(selRows[0]);
 		DefaultMutableTreeNode firstNode =
 				(DefaultMutableTreeNode)path.getLastPathComponent();
-		if(firstNode.getChildCount() > 0&&
-				target.getLevel() < firstNode.getLevel())
-		{
-			return false;
-		}
-		return true;
+		return firstNode.getChildCount() <= 0||
+				target.getLevel() >= firstNode.getLevel();
 	}
 
 	private boolean haveCompleteNode(JTree tree)

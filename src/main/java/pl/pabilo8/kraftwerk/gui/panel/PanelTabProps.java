@@ -1,6 +1,7 @@
 package pl.pabilo8.kraftwerk.gui.panel;
 
 import com.github.weisj.darklaf.util.Alignment;
+import pl.pabilo8.kraftwerk.gui.Icons;
 
 /**
  * @author Pabilo8
@@ -10,7 +11,7 @@ public class PanelTabProps extends PanelTab
 {
 	public PanelTabProps()
 	{
-		super("tabs.props", null, 256, Alignment.WEST, false, false);
+		super("tabs.props", Icons.propsIcon, 256, Alignment.WEST, false, false);
 	}
 
 	@Override

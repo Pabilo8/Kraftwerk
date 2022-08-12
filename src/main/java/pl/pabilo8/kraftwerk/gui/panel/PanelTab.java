@@ -5,6 +5,7 @@ import com.github.weisj.darklaf.components.tabframe.TabFramePopup;
 import com.github.weisj.darklaf.util.Alignment;
 import net.miginfocom.swing.MigLayout;
 import pl.pabilo8.kraftwerk.Kraftwerk;
+import pl.pabilo8.kraftwerk.gui.StandardPopupMenu;
 import pl.pabilo8.kraftwerk.utils.GuiUtils;
 
 import javax.annotation.Nullable;
@@ -29,6 +30,7 @@ public abstract class PanelTab extends JPanel
 		if(open)
 			Kraftwerk.INSTANCE.tabFrame.openTab((TabFramePopup)popup);
 		Kraftwerk.registerTab(this);
+		//setComponentPopupMenu(new StandardPopupMenu());
 	}
 
 	private static String getLayoutString(boolean open, boolean debug)
